@@ -1,0 +1,8 @@
+# Ignorar carpetas de datos pesados y temporales
+squid_cache/
+adguard_work/
+grafana_data/
+
+# Ignorar archivos del sistema operativo
+.DS_Store
+Thumbs.db

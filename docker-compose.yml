@@ -1,0 +1,83 @@
+services:
+  adguard:
+    image: adguard/adguardhome
+    container_name: adguard_dns
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "3001:80/tcp"
+    volumes:
+      - ./adguard_work:/opt/adguardhome/work
+      - ./adguard_conf:/opt/adguardhome/conf
+    restart: unless-stopped
+
+  squid:
+    image: b4tman/squid
+    container_name: squid_proxy
+    ports:
+      - "3128:3128"
+      - "3129:3129"
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf
+      - ./squid_cache:/var/spool/squid
+    dns:
+      - 8.8.8.8
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus_db
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana_dashboard
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+
+  adguard-exporter:
+    image: ebrianne/adguard-exporter:latest
+    container_name: adguard_exporter
+    restart: unless-stopped
+    environment:
+      - 'ADGUARD_PROTOCOL=http'
+      - 'ADGUARD_HOSTNAME=adguard_dns'
+      - 'ADGUARD_PORT=80'
+      - 'ADGUARD_USERNAME=jr-admin'
+      - 'ADGUARD_PASSWORD=linux1234'
+      - 'SERVER_PORT=9617'
+    ports:
+      - "9617:9617"
+
+  squid-exporter:
+    image: boynux/squid-exporter:latest
+    container_name: squid_exporter
+    restart: unless-stopped
+    environment:
+      - SQUID_HOSTNAME=squid_proxy
+      - SQUID_PORT=3128
+    ports:
+      - "9301:9301"
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+    restart: unless-stopped
+
+volumes:
+  grafana_data:
