@@ -1,8 +1,9 @@
-
 ![Logo UNAN-Managua](logo-unan.jpeg)
 # Manual de implementación de Infraestructura Telemática
 
-AdGuard Home, Squid, Prometheus y Grafana sobre Docker · Versión 2.1 para principiantes · 06-11-2026
+AdGuard Home, Squid, Prometheus y Grafana sobre Docker · Versión 2.2 para principiantes · 07-11-2026
+
+**Repositorio oficial:** [tesis-telematica-redes](https://github.com/junior9852/tesis-telematica-redes)
 
 **Proyecto de laboratorio:** servidor Ubuntu con Docker que filtra el DNS de una red local (AdGuard Home), intercepta y guarda en caché el tráfico web (Squid) y muestra todo en una consola central de métricas (Prometheus y Grafana) para la institución modelo `srv-colegio.lan`.
 
@@ -18,23 +19,40 @@ AdGuard Home, Squid, Prometheus y Grafana sobre Docker · Versión 2.1 para prin
 | --- | --- | --- |
 | 1.0 | — | Guía de proyecto de tesis original (anexo técnico de implementación). |
 | 2.0 | 02-11-2026 | Reescrita para principiantes: teoría, diseño, pasos numerados con verificación, construcción del dashboard panel por panel, solución de problemas y correcciones a los archivos originales (ver 2.3). |
-| 2.1 | 06-11-2026 | Integrantes y tutor actualizados; node-exporter con acceso a /proc y /sys del servidor anfitrión (Fase 4); nuevo Panel 9 «Tráfico de Red WAN» (Fase 12 y Anexo A) y dashboard de 9 paneles; capturas 10 y 11 señaladas en la Fase 13; mejoras de redacción. |
+| 2.1 | 06-11-2026 | Integrantes y tutor actualizados; node-exporter con acceso a `/proc` y `/sys` del servidor anfitrión (Fase 4); nuevo Panel 9 «Tráfico de Red WAN» (Fase 12 y Anexo A) y dashboard de 9 paneles. |
+| 2.2 | 07-11-2026 | Nueva Fase -1 (instalación de Git y clonación del repositorio desde GitHub); carpeta de trabajo unificada con el repositorio (`tesis-telematica-redes`); capturas 10 y 11 señaladas en la Fase 13; formato optimizado para `README.md`; bibliografía actualizada. |
 
 ## Índice
 
-- Instrucciones de uso del manual
-- Equipos, herramientas y software utilizados
-- 1. Objetivo y alcance
-- 2. Hoja de ruta (fases, checklist y correcciones respecto a la guía original)
-- 3. Teoría (DNS, proxy, Docker, Prometheus, Grafana)
-- 4. Diseño (topología, puertos, carpetas)
-- 5. Implementación (Fases 0 a 14)
-- 6. Evidencias y verificación integral
-- Anexo A. Dashboard: referencia de los 9 paneles y consultas PromQL
-- Anexo B. Solución de problemas
-- Anexo C. Comandos útiles
-- Anexo D. Glosario
-- Bibliografía
+- [Instrucciones de uso del manual](#instrucciones-de-uso-del-manual)
+- [Equipos, herramientas y software utilizados](#equipos-herramientas-y-software-utilizados)
+- [1. Objetivo y alcance](#1-objetivo-y-alcance)
+- [2. Hoja de ruta](#2-hoja-de-ruta)
+- [3. Teoría](#3-teoría)
+- [4. Diseño](#4-diseño)
+- [5. Implementación](#5-implementación)
+    - [Fase -1: Clonación y descarga desde GitHub](#fase--1-clonación-y-descarga-desde-github)
+    - [Fase 0: Preparar el servidor](#fase-0-preparar-el-servidor)
+    - [Fase 1: Instalar Docker](#fase-1-instalar-docker)
+    - [Fase 2: Crear la estructura de carpetas](#fase-2-crear-la-estructura-de-carpetas)
+    - [Fase 3: Configurar AdGuard Home (archivo YAML)](#fase-3-configurar-adguard-home-archivo-yaml)
+    - [Fase 4: Crear el archivo de orquestación (`docker-compose.yml`)](#fase-4-crear-el-archivo-de-orquestación-docker-composeyml)
+    - [Fase 5: Configurar el proxy Squid (`squid.conf`)](#fase-5-configurar-el-proxy-squid-squidconf)
+    - [Fase 6: Configurar Prometheus (`prometheus.yml`)](#fase-6-configurar-prometheus-prometheusyml)
+    - [Fase 7: Crear los scripts de automatización](#fase-7-crear-los-scripts-de-automatización)
+    - [Fase 8: Iniciar el laboratorio](#fase-8-iniciar-el-laboratorio)
+    - [Fase 9: Verificar que los servicios responden y que Prometheus los ve](#fase-9-verificar-que-los-servicios-responden-y-que-prometheus-los-ve)
+    - [Fase 10: Entrar a AdGuard y probar la resolución DNS desde un cliente](#fase-10-entrar-a-adguard-y-probar-la-resolución-dns-desde-un-cliente)
+    - [Fase 11: Grafana, fuente de datos e importación del dashboard (método rápido)](#fase-11-grafana-fuente-de-datos-e-importación-del-dashboard-método-rápido)
+    - [Fase 12: Construir el dashboard desde cero en Grafana (paso a paso)](#fase-12-construir-el-dashboard-desde-cero-en-grafana-paso-a-paso)
+    - [Fase 13: Generar tráfico y leer los resultados](#fase-13-generar-tráfico-y-leer-los-resultados)
+    - [Fase 14: Intercepción transparente con iptables (opcional, avanzada)](#fase-14-intercepción-transparente-con-iptables-opcional-avanzada)
+- [6. Evidencias y verificación integral](#6-evidencias-y-verificación-integral)
+- [Anexo A. Dashboard: referencia de los 9 paneles y del JSON](#anexo-a-dashboard-referencia-de-los-9-paneles-y-del-json)
+- [Anexo B. Solución de problemas](#anexo-b-solución-de-problemas)
+- [Anexo C. Comandos útiles](#anexo-c-comandos-útiles)
+- [Anexo D. Glosario](#anexo-d-glosario)
+- [Bibliografía](#bibliografía)
 
 ## Instrucciones de uso del manual
 
@@ -46,7 +64,8 @@ Este manual sirve para dos cosas: **reproducir el laboratorio desde cero** sin c
 | --- | --- |
 | Entender qué es cada herramienta | 3. Teoría |
 | Ver cómo está armada la red y los puertos | 4. Diseño |
-| Construir el laboratorio paso a paso | 5. Implementación, Fase 0 a Fase 14, en orden |
+| Descargar el proyecto desde GitHub | Fase -1 |
+| Construir el laboratorio paso a paso | 5. Implementación, Fase -1 a Fase 14, en orden |
 | Construir el dashboard de Grafana desde cero | Fase 11 (importar) o Fase 12 (construir) |
 | Entender qué mide cada panel | Anexo A |
 | Resolver un error | Anexo B |
@@ -100,6 +119,7 @@ Este manual sirve para dos cosas: **reproducir el laboratorio desde cero** sin c
 | `prom/prometheus` | Base de datos de métricas |
 | `grafana/grafana` | Paneles gráficos |
 | `ebrianne/adguard-exporter`, `boynux/squid-exporter`, `prom/node-exporter` | Convierten las métricas de AdGuard, Squid y del servidor al formato de Prometheus |
+| Git | Clonar (descargar) el repositorio del proyecto desde GitHub |
 | Cliente Windows | Equipo de prueba: cambiar DNS, `ping`, `nslookup`, navegador |
 | `nano`, `curl`, navegador web | Editar archivos, probar servicios, abrir los paneles |
 
@@ -130,9 +150,10 @@ Implementar una infraestructura telemática contenerizada que filtre el DNS, con
 
 | Fase | Nombre | Resultado esperado |
 | --- | --- | --- |
+| -1 | Clonar el repositorio desde GitHub | Carpeta `tesis-telematica-redes` descargada |
 | 0 | Preparar el servidor | Ubuntu actualizado, IP conocida |
 | 1 | Instalar Docker | `docker --version` y `docker compose version` responden |
-| 2 | Crear carpetas | Estructura `laboratorio-tesis` lista |
+| 2 | Crear carpetas | Estructura `tesis-telematica-redes` lista |
 | 3 | Configurar AdGuard (YAML) | `AdGuardHome.yaml` creado |
 | 4 | Crear `docker-compose.yml` | Archivo de orquestación listo |
 | 5 | Crear `squid.conf` | Proxy configurado |
@@ -148,7 +169,7 @@ Implementar una infraestructura telemática contenerizada que filtre el DNS, con
 
 ### 2.2 Checklist de avance
 
-- [ ] Fase 0 a 2 completas
+- [ ] Fase -1 a 2 completas (repositorio clonado y carpetas creadas)
 - [ ] Archivos de las fases 3 a 7 creados
 - [ ] Contenedores en Up (Fase 8)
 - [ ] Targets de Prometheus en UP (Fase 9)
@@ -175,7 +196,7 @@ Al revisar la guía y el archivo JSON del dashboard se encontraron puntos que po
 | 10 | El JSON incluye una variable vacía `query0` que ensucia el dashboard | Se indica cómo eliminarla |
 | 11 | Los paneles «Tasa de Aciertos» y «Byte Hit Ratio» usan exactamente la misma consulta, y esa consulta mide aciertos por **petición**, no por **byte** | Se explica y se propone una consulta alternativa para bytes (Anexo A) |
 | 12 | El panel «Estado de Servicios» muestra siempre color verde aunque el valor sea 0 | Se añade una mejora opcional con colores por valor (Fase 12) |
-| 13 | El contenedor de node-exporter no tenía acceso a /proc y /sys del servidor anfitrión | Se montan en solo lectura y se indican con --path.procfs y --path.sysfs (Fase 4); se añade el Panel 9 de tráfico de red (Fase 12) |
+| 13 | El contenedor de node-exporter no tenía acceso a `/proc` y `/sys` del servidor anfitrión | Se montan en solo lectura y se indican con `--path.procfs` y `--path.sysfs` (Fase 4); se añade el Panel 9 de tráfico de red (Fase 12) |
 
 ## 3. Teoría
 
@@ -272,7 +293,7 @@ La clave: PREROUTING solo ve paquetes que **llegan al servidor**. Si el cliente 
 ### 4.3 Estructura de carpetas
 
 ```
-laboratorio-tesis/
+tesis-telematica-redes/
 ├── adguard_conf/
 │   └── AdGuardHome.yaml
 ├── adguard_work/
@@ -285,6 +306,8 @@ laboratorio-tesis/
 ├── 03_firewall.sh
 └── auto_update_ip.sh
 ```
+
+Esta es la estructura de trabajo que se usa en todo el manual. Si el repositorio clonado en la Fase -1 ya trae algunos de estos archivos, compruébalo con `ls -la`. Las carpetas vacías (`adguard_work`, `squid_cache`) pueden no venir en el repositorio y se crean en la Fase 2.
 
 ### 4.4 Flujo de datos de la telemetría
 
@@ -300,6 +323,79 @@ Si un panel sale vacío (*No data*), el fallo está en uno de estos cuatro eslab
 Todos los comandos de esta sección se ejecutan en la **terminal del servidor Ubuntu**. Cada fase tiene: objetivo, pasos numerados, una tabla que explica los comandos y una verificación. **No avances si la verificación falla.**
 
 **Mini guía de `nano` (editor de texto de la terminal):** `nano archivo` abre o crea el archivo; pega el contenido con clic derecho o `Ctrl+Shift+V`; guarda con `Ctrl+O` y `Enter`; sal con `Ctrl+X`.
+
+### Fase -1: Clonación y descarga desde GitHub
+
+**Objetivo:** instalar Git en Ubuntu y descargar el repositorio oficial del proyecto en el servidor.
+
+**Qué es Git y por qué se usa:** Git es un programa que guarda el historial de un proyecto. **GitHub** es el sitio web donde está publicado el repositorio. *Clonar* significa descargar una copia completa del proyecto, con todos sus archivos, a tu equipo.
+
+**Paso -1.1. Instalar Git**
+
+```bash
+sudo apt update
+sudo apt install -y git
+git --version
+```
+
+✔ **Verificación:** el último comando muestra una versión, por ejemplo `git version 2.43.0`.
+
+**Paso -1.2. Clonar el repositorio**
+
+Ubícate en tu carpeta personal y clona el proyecto:
+
+```bash
+cd ~
+git clone https://github.com/junior9852/tesis-telematica-redes.git
+```
+
+**Paso -1.3. Entrar a la carpeta del proyecto y revisar su contenido**
+
+```bash
+cd tesis-telematica-redes
+ls -la
+```
+
+| Comando | Función |
+| --- | --- |
+| `sudo apt install -y git` | Instala Git desde los repositorios de Ubuntu (`-y` responde "sí" automáticamente) |
+| `git --version` | Comprueba que Git quedó instalado |
+| `cd ~` | Va a tu carpeta personal (por ejemplo, `/home/tu_usuario`) |
+| `git clone <URL>` | Descarga el repositorio completo. Crea una carpeta con el nombre del proyecto (`tesis-telematica-redes`) |
+| `cd tesis-telematica-redes` | Entra a la carpeta descargada |
+| `ls -la` | Lista todos los archivos y carpetas, incluidos los ocultos |
+
+✔ **Verificación:** `ls -la` muestra el contenido del proyecto (por ejemplo `README.md`) y no un mensaje de error. A partir de aquí, **esa carpeta es tu carpeta de trabajo**: todas las fases siguientes se hacen dentro de `tesis-telematica-redes`.
+
+> **Cómo usar los archivos del repositorio con este manual:** las fases 3 a 7 explican uno a uno los archivos de configuración (`AdGuardHome.yaml`, `docker-compose.yml`, `squid.conf`, `prometheus.yml` y los scripts). Si el repositorio ya trae alguno, puedes usarlo, pero **lee igualmente su explicación** y revisa el contenido con `cat nombre_del_archivo` para confirmar que coincide con el manual (por ejemplo, que el bloque `node-exporter` de la Fase 4 tenga los volúmenes de `/proc` y `/sys`). Si algún archivo no está, créalo siguiendo la fase correspondiente.
+
+**Paso -1.4. Actualizar el proyecto más adelante (opcional)**
+
+Si el repositorio recibe cambios en GitHub, descárgalos sin volver a clonar:
+
+```bash
+cd ~/tesis-telematica-redes
+git pull
+```
+
+Si Git avisa que tienes cambios locales que chocan con los nuevos, guarda una copia de tus archivos modificados antes de continuar.
+
+**Alternativa sin Git (descargar un ZIP)**
+
+1. Abre `https://github.com/junior9852/tesis-telematica-redes` en el navegador.
+2. Pulsa el botón verde **Code** y luego **Download ZIP**.
+3. En el servidor, descomprime el archivo (`sudo apt install -y unzip` y luego `unzip nombre_del_archivo.zip`). La carpeta resultante se llamará `tesis-telematica-redes-main`; renómbrala con `mv tesis-telematica-redes-main tesis-telematica-redes`.
+
+**Problemas frecuentes en esta fase**
+
+| Síntoma | Causa probable | Solución |
+| --- | --- | --- |
+| `Could not resolve host: github.com` | El servidor no tiene Internet o DNS | Prueba `ping -c 3 github.com`. Revisa la conexión del servidor y su DNS (Fase 8, sección del puerto 53) |
+| `fatal: destination path 'tesis-telematica-redes' already exists` | Ya clonaste el repositorio antes | Entra con `cd tesis-telematica-redes` y usa `git pull` si quieres actualizarlo |
+| Git pide usuario y contraseña | El repositorio es privado o la dirección está mal escrita | Revisa la URL. Si es privado, GitHub no acepta la contraseña de la cuenta: se usa un *token de acceso personal* (Settings > Developer settings > Personal access tokens) |
+| `git: command not found` | Git no está instalado | Repite el Paso -1.1 |
+
+> 📷 **Captura 0:** `git clone` terminado y `ls -la` dentro de `tesis-telematica-redes`
 
 ### Fase 0: Preparar el servidor
 
@@ -335,7 +431,7 @@ ping -c 3 google.com
 
 ✔ **Verificación:** aparecen 3 respuestas y `0% packet loss`. ✘ Si falla, revisa el cable o, en una máquina virtual, que el adaptador esté en **modo puente (Bridged)**.
 
-&#91;Captura 1: salida de `ip a` con la IP del servidor\]
+> 📷 **Captura 1:** salida de `ip a` con la IP del servidor
 
 ### Fase 1: Instalar Docker
 
@@ -395,22 +491,32 @@ docker run --rm hello-world
 
 Deben mostrarse las versiones y el mensaje `Hello from Docker!`. ✘ Si dice `permission denied`, cierra sesión y vuelve a entrar, o ejecuta de nuevo `newgrp docker`.
 
-&#91;Captura 2: `docker --version` y `docker compose version`\]
+> 📷 **Captura 2:** `docker --version` y `docker compose version`
 
 ### Fase 2: Crear la estructura de carpetas
 
-**Objetivo:** crear la carpeta del proyecto y las subcarpetas que usarán los contenedores.
+**Objetivo:** dejar creadas las subcarpetas que usarán los contenedores dentro de la carpeta del proyecto.
+
+Si clonaste el repositorio (Fase -1), ya estás en la carpeta del proyecto. Entra a ella y crea las subcarpetas:
 
 ```bash
-mkdir laboratorio-tesis
-cd laboratorio-tesis
-mkdir adguard_conf adguard_work squid_cache
+cd ~/tesis-telematica-redes
+mkdir -p adguard_conf adguard_work squid_cache
+chmod 777 squid_cache
+```
+
+Si **no** clonaste el repositorio y trabajas desde cero, crea primero la carpeta:
+
+```bash
+mkdir tesis-telematica-redes
+cd tesis-telematica-redes
+mkdir -p adguard_conf adguard_work squid_cache
 chmod 777 squid_cache
 ```
 
 | Comando | Función |
 | --- | --- |
-| `mkdir` | Crea carpetas |
+| `mkdir -p` | Crea carpetas. Con `-p` no da error si la carpeta ya existe (por ejemplo, porque vino en el repositorio) |
 | `cd` | Entra a una carpeta |
 | `adguard_conf` | Aquí vivirá la configuración de AdGuard (`AdGuardHome.yaml`) |
 | `adguard_work` | Datos de trabajo de AdGuard (registros, estadísticas) |
@@ -419,7 +525,7 @@ chmod 777 squid_cache
 
 ✔ **Verificación:** `ls -l` muestra las tres carpetas y `squid_cache` aparece como `drwxrwxrwx`.
 
-> A partir de aquí, **todos los archivos se crean dentro de `laboratorio-tesis`**. Si abres una terminal nueva, entra de nuevo con `cd laboratorio-tesis`.
+> A partir de aquí, **todos los archivos se crean dentro de `tesis-telematica-redes`**. Si abres una terminal nueva, entra de nuevo con `cd ~/tesis-telematica-redes`.
 
 ### Fase 3: Configurar AdGuard Home (archivo YAML)
 
@@ -920,6 +1026,7 @@ volumes:
 | `dns: 8.8.8.8` | Squid usa el DNS de Google para resolver sitios web (así no depende de AdGuard) |
 | `restart: unless-stopped` | Si el contenedor se cae o el servidor se reinicia, Docker lo levanta de nuevo |
 | `environment:` | Variables de configuración. El exportador de AdGuard necesita el usuario y la contraseña del panel |
+| `command:` | Argumentos con los que arranca el programa del contenedor (en `node-exporter`, las rutas donde debe leer las estadísticas del sistema) |
 
 **Sobre `node-exporter`:** monta `/proc` y `/sys` del servidor en modo solo lectura (`:ro`) y, con `--path.procfs` y `--path.sysfs`, le indica que lea las estadísticas del sistema desde esas rutas. Con esto obtiene las métricas del anfitrión (CPU, memoria, disco y contadores de red) que usa el Panel 9. Qué interfaces de red aparecen se comprueba en la Fase 9.
 
@@ -1216,7 +1323,7 @@ docker compose ps
 | `squid_exporter` | Up |
 | `node_exporter` | Up |
 
-&#91;Captura 3: `docker compose ps` con los 7 contenedores en Up\]
+> 📷 **Captura 3:** `docker compose ps` con los 7 contenedores en Up
 
 **Si aparece el error `failed to bind host port 0.0.0.0:53/tcp: address already in use`**
 
@@ -1256,7 +1363,7 @@ curl -s localhost:9301/metrics | grep squid_client_http_requests_total
 curl -s localhost:9100/metrics | grep node_network_transmit_bytes_total
 ```
 
-Cada comando debe mostrar líneas con nombre de métrica y un número. En el de node\_exporter fíjate en el nombre del device (por ejemplo eth0, enp3s0 o ens33): ese es el nombre que usa el Panel 9. Si el de AdGuard no muestra nada, revisa el usuario y la contraseña del exportador (Fase 3 y Anexo B).
+Cada comando debe mostrar líneas con nombre de métrica y un número. En el de `node_exporter` fíjate en el nombre del `device` (por ejemplo `eth0`, `enp3s0` o `ens33`): ese es el nombre que usa el Panel 9. Si el de AdGuard no muestra nada, revisa el usuario y la contraseña del exportador (Fase 3 y Anexo B).
 
 **Paso 9.2. Revisar los targets en Prometheus**
 
@@ -1271,7 +1378,7 @@ Cada comando debe mostrar líneas con nombre de métrica y un número. En el de 
 
 ✔ **Verificación:** 4 targets en UP y 4 resultados con valor 1. ✘ Si alguno está en DOWN, ese servicio o su exportador falló: no sigas a Grafana hasta resolverlo.
 
-&#91;Captura 4: Prometheus, página Targets con los 4 jobs en UP\]
+> 📷 **Captura 4:** Prometheus, página Targets con los 4 jobs en UP
 
 ### Fase 10: Entrar a AdGuard y probar la resolución DNS desde un cliente
 
@@ -1290,7 +1397,7 @@ Cada comando debe mostrar líneas con nombre de métrica y un número. En el de 
    - **IP:** la IP actual del servidor Ubuntu
 3. Pulsa **Guardar**.
 
-&#91;Captura 5: regla DNS `srv-colegio.lan` en AdGuard\]
+> 📷 **Captura 5:** regla DNS `srv-colegio.lan` en AdGuard
 
 **Paso 10.3. Configurar el cliente Windows para que use el servidor como DNS**
 
@@ -1310,7 +1417,7 @@ nslookup srv-colegio.lan
 
 ✔ **Verificación:** el `ping` responde desde la IP del servidor (por ejemplo, `Respuesta desde 192.168.1.58: bytes=32 tiempo<1m TTL=64`) y `nslookup` muestra esa misma IP.
 
-&#91;Captura 6: ping exitoso a `srv-colegio.lan` desde Windows\]
+> 📷 **Captura 6:** ping exitoso a `srv-colegio.lan` desde Windows
 
 **Paso 10.5. Probar un bloqueo**
 
@@ -1343,7 +1450,7 @@ Debe responder con error o rechazo (por ejemplo, `Query refused`) o con la direc
 
 **Por qué `http://prometheus:9090` y no `srv-colegio.lan:9090`:** la consulta la hace el contenedor de Grafana, no tu navegador. Dentro de la red de Docker, `prometheus` es el nombre del servicio y siempre se resuelve; `srv-colegio.lan` depende del DNS del servidor y puede fallar.
 
-&#91;Captura 7: Data source Prometheus guardado con éxito\]
+> 📷 **Captura 7:** Data source Prometheus guardado con éxito
 
 **Paso 11.3. Obtener el identificador (UID) de tu fuente de datos**
 
@@ -1360,6 +1467,8 @@ La forma más rápida de evitarlo:
 2. Pulsa `Ctrl+H` (Buscar y reemplazar).
 3. Reemplaza **`efzh5rtmm718ga`** por **tu UID** en todas las apariciones.
 4. Guarda el archivo.
+
+> **Si el archivo está en el repositorio clonado:** búscalo con `find ~/tesis-telematica-redes -name "dashboard-telemetria.json"`. Puedes reemplazar el UID directamente en el servidor con `sed -i 's/efzh5rtmm718ga/TU_UID/g' dashboard-telemetria.json` (cambia `TU_UID` por el tuyo) y luego pasar el archivo a tu PC, o bajar el original desde GitHub (botón **Raw** y **Guardar como**) y editarlo en el Bloc de notas como se indica arriba.
 
 **Paso 11.5. Importar el archivo**
 
@@ -1593,7 +1702,7 @@ Arrastra cada panel por su título y redimensiona con la esquina inferior derech
 
 ✔ **Verificación:** los 9 paneles existen y muestran datos o ceros, sin el aviso **No data**. Compara con la captura de referencia (4 servicios en 1; ejemplo de valores: 1079 peticiones, 1684 consultas DNS, 145 bloqueados, 8,61 % de bloqueo).
 
-&#91;Captura 8: dashboard completo con los 9 paneles\]
+> 📷 **Captura 8:** dashboard completo con los 9 paneles
 
 ### Fase 13: Generar tráfico y leer los resultados
 
@@ -1612,7 +1721,7 @@ nslookup thepiratebay.org
 
 Suben **Consultas DNS Totales** y **Dominios Bloqueados**.
 
-&#91;Captura 10: Registro de consultas de AdGuard con una consulta bloqueada\]
+> 📷 **Captura 10:** Registro de consultas de AdGuard con una consulta bloqueada
 
 **Paso 13.2. Generar tráfico por el proxy (método explícito, el más seguro para empezar)**
 
@@ -1627,7 +1736,7 @@ curl -s -D - -o /dev/null -x http://localhost:3128 http://example.com/ | grep -i
 
 El primer comando envía 5 peticiones por el proxy y muestra el código de respuesta (`200`). El segundo muestra la cabecera `X-Cache`: `MISS` significa que Squid fue a Internet; `HIT` significa que respondió desde su caché.
 
-&#91;Captura 11: cabecera X-Cache de Squid (primero MISS y luego HIT)\]
+> 📷 **Captura 11:** cabecera X-Cache de Squid (primero MISS y luego HIT)
 
 **Paso 13.3. Esperar y leer los paneles**
 
@@ -1685,7 +1794,7 @@ sudo sysctl -w net.ipv4.ip_forward=0
 
 **Persistencia:** estas reglas **se pierden al reiniciar el servidor**. Vuelve a ejecutar `sudo ./03_firewall.sh` después de cada reinicio (o añade esa línea al final de `02_iniciar_lab.sh`). Si el firewall `ufw` está activo (`sudo ufw status`), debes permitir los puertos 53, 3000, 3001, 3128, 3129 y 9090.
 
-&#91;Captura 9: reglas de iptables y contador de paquetes\]
+> 📷 **Captura 9:** reglas de iptables y contador de paquetes
 
 ## 6. Evidencias y verificación integral
 
@@ -1693,6 +1802,7 @@ sudo sysctl -w net.ipv4.ip_forward=0
 
 | Captura | Fase | Qué debe mostrar |
 | --- | --- | --- |
+| 0 | -1 | `git clone` terminado y `ls -la` dentro de `tesis-telematica-redes` |
 | 1 | 0 | `ip a` con la IP del servidor |
 | 2 | 1 | Versiones de `docker` y `docker compose` |
 | 3 | 8 | `docker compose ps` con los 7 contenedores en Up |
@@ -1722,18 +1832,18 @@ sudo sysctl -w net.ipv4.ip_forward=0
 | 11 | Grafana conectado | Data source > Save & test | Mensaje de éxito |  |
 | 12 | Dashboard | Los 9 paneles | Sin *No data* |  |
 | 13 | Intercepción (opcional) | Reglas DNAT con paquetes | Contador de `pkts` aumenta |  |
-| 14 | Métricas de red del servidor | curl -s localhost:9100/metrics \| grep node\_network\_transmit\_bytes\_total | Aparece la interfaz que usa el Panel 9 |  |
+| 14 | Métricas de red del servidor | `curl -s localhost:9100/metrics \| grep node_network_transmit_bytes_total` | Aparece la interfaz que usa el Panel 9 |  |
 
 ### 6.3 Apagado, encendido y respaldo del laboratorio
 
-| Acción | Comando (dentro de `laboratorio-tesis`) |
+| Acción | Comando (dentro de `tesis-telematica-redes`) |
 | --- | --- |
 | Detener los contenedores (conserva todo) | `docker compose stop` |
 | Iniciar de nuevo después de detener | `docker compose start` |
 | Iniciar tras reiniciar el servidor | `./02_iniciar_lab.sh` (recalcula la IP y actualiza AdGuard) |
 | Eliminar contenedores (los volúmenes se conservan) | `docker compose down` |
 | **Eliminar también los datos de Grafana** | `docker compose down -v` (cuidado: borra los dashboards guardados en el volumen) |
-| Respaldar configuración | Copiar la carpeta `laboratorio-tesis` y el JSON exportado del dashboard |
+| Respaldar configuración | Copiar la carpeta `tesis-telematica-redes` y el JSON exportado del dashboard |
 
 ### 6.4 Mejoras de seguridad recomendadas (más allá del laboratorio)
 
@@ -1742,6 +1852,7 @@ sudo sysctl -w net.ipv4.ip_forward=0
 - Restringir `http_access allow manager` de Squid a la red local.
 - Publicar solo los puertos necesarios (los de exportadores `9100`, `9301` y `9617` normalmente no hace falta exponerlos fuera del servidor).
 - Añadir un volumen para los datos de Prometheus si se quiere conservar el historial al recrear el contenedor.
+- Si el repositorio de GitHub es público, no subas contraseñas reales: guarda las credenciales en un archivo `.env` y agrégalo al `.gitignore`. Las credenciales `jr-admin` / `linux1234` de este manual son solo de laboratorio.
 - Si se necesita filtrar HTTPS, estudiar *SSL Bump* con un certificado de la institución instalado en los equipos (requiere autorización y conlleva implicaciones de privacidad).
 
 ## Anexo A. Dashboard: referencia de los 9 paneles y del JSON
@@ -1758,9 +1869,9 @@ sudo sysctl -w net.ipv4.ip_forward=0
 | 6 | Aciertos de Caché (Hits) | Stat | `sum(increase(squid_client_http_hits_total{job="squid"}[5m]))` | `squid_exporter` |
 | 7 | Tasa de Aciertos (%) | Gauge | `(sum(rate(squid_client_http_hits_total[5m])) / sum(rate(squid_client_http_requests_total[5m]))) * 100` | `squid_exporter` |
 | 10 | Byte Hit Ratio | Stat | La misma consulta del panel 7 | `squid_exporter` |
-| nuevo | Tráfico de Red WAN | Time series | rate(node\_network\_transmit\_bytes\_total{device="eth0"}\[$\_\_rate\_interval\]) (opcional: la misma con node\_network\_receive\_bytes\_total) | node\_exporter |
+| nuevo | Tráfico de Red WAN | Time series | `rate(node_network_transmit_bytes_total{device="eth0"}[$__rate_interval])` (opcional: la misma con `node_network_receive_bytes_total`) | `node_exporter` |
 
-El dashboard completo se llama **Consola Central de Telemetría**, usa el rango **Last 5 minutes** (se recomienda ampliarlo a 15 minutos) y no tiene refresco automático configurado (se recomienda 10 s). Los ocho primeros paneles vienen en el archivo dashboard-telemetria.json; el Panel 9 se agrega con la Fase 12 y se vuelve a exportar (Paso 12.5).
+El dashboard completo se llama **Consola Central de Telemetría**, usa el rango **Last 5 minutes** (se recomienda ampliarlo a 15 minutos) y no tiene refresco automático configurado (se recomienda 10 s). Los ocho primeros paneles vienen en el archivo `dashboard-telemetria.json`; el Panel 9 se agrega con la Fase 12 y se vuelve a exportar (Paso 12.5).
 
 ### A.2 Cómo leer el archivo JSON y su equivalente en la interfaz
 
@@ -1845,7 +1956,7 @@ Cuando un panel muestra *No data* o un valor raro, revisa los eslabones **de izq
 | Respuestas DNS lentas o rechazadas con muchos clientes | Límite `ratelimit: 20` consultas por segundo por subred `/24` | Aumentar el valor en `AdGuardHome.yaml` y reiniciar AdGuard |
 | Disco lleno | Registros y estadísticas, imágenes de Docker antiguas | `df -h`, `docker system df`, `docker image prune`; reducir `querylog.interval` |
 | Tras reiniciar, el tráfico ya no se intercepta | Las reglas `iptables` no son persistentes | Repetir `sudo ./03_firewall.sh` |
-| Panel Tráfico de Red WAN en No data o en 0 | El nombre de la interfaz no es eth0, o node-exporter solo ve la red de su contenedor | Revisa los device disponibles con el comando de la Fase 9, cambia eth0 en la consulta y, si hace falta, usa network\_mode: host en node-exporter |
+| Panel Tráfico de Red WAN en *No data* o en 0 | El nombre de la interfaz no es `eth0`, o node-exporter solo ve la red de su contenedor | Revisa los `device` disponibles con el comando de la Fase 9, cambia `eth0` en la consulta y, si hace falta, usa `network_mode: host` en node-exporter |
 
 ## Anexo C. Comandos útiles
 
@@ -1901,13 +2012,7 @@ Cuando un panel muestra *No data* o un valor raro, revisa los eslabones **de izq
 
 ## Bibliografía
 
-- Guía de despliegue: Infraestructura Telemática. Anexo técnico de implementación para sistemas de red y monitoreo (versión original del proyecto).
-- Archivo `dashboard-telemetria.json` (exportado de Grafana v13.2.0).
-- Documentación oficial de Docker y Docker Compose.
-- Wiki y documentación oficial de AdGuard Home (configuración YAML, reescrituras DNS, servicios bloqueados).
-- Documentación oficial de Squid (directivas `http_port`, `cache_dir`, `acl`, `http_access`).
-- Documentación oficial de Prometheus (configuración, PromQL) y de Grafana (data sources, importación de dashboards, visualizaciones Stat y Gauge).
-- Repositorios de los exportadores `ebrianne/adguard-exporter` y `boynux/squid-exporter`, y página de manual de `prometheus-squid-exporter` (Debian/Ubuntu).
-- Páginas de manual de Linux: `iptables(8)`, `ip(8)`, `sysctl(8)`.
-
-Nota: los nombres de menús de Grafana y de Prometheus pueden cambiar entre versiones; en caso de diferencia, consulta la documentación de la versión instalada.
+- Repositorio oficial del proyecto en GitHub: [tesis-telematica-redes](https://github.com/junior9852/tesis-telematica-redes).
+- Guía de despliegue: Infraestructura Telemática. Anexo técnico de implementación (UNAN-Managua).
+- Documentación oficial de Docker, Docker Compose, AdGuard Home, Squid, Prometheus y Grafana.
+- Páginas de manual de Linux: `iptables(8)`, `ip(8)`, `sysctl(8)`, `git(1)`.
